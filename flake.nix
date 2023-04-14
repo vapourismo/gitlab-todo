@@ -35,7 +35,7 @@
               rust-analyzer
             ]
             ++ lib.optionals stdenv.isDarwin (with darwin.apple_sdk.frameworks; [
-              # CoreFoundation
+              Security
             ]);
         };
       };
