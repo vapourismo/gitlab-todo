@@ -11,6 +11,8 @@ use std::{
   error::Error,
   io::{stdout, Write},
   ops::Sub,
+  thread::sleep,
+  time::Duration,
 };
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -257,22 +259,7 @@ fn cell(width: usize, body: &str) -> String {
   }
 }
 
-fn main() -> Result<()> {
-  let gitlab_token = env::var("GITLAB_TOKEN")?;
-
-  let client = Client::builder()
-    .default_headers(HeaderMap::from_iter([(
-      "Authorization".parse().unwrap(),
-      format!("Bearer {}", gitlab_token).parse()?,
-    )]))
-    .build()?;
-
-  let user_name = env::args()
-    .nth(1)
-    .ok_or::<Box<dyn Error>>("First argument should be the GitLab user name".into())?;
-
-  let user_info = user_info(&client, user_name.as_str())?;
-
+fn print_all(client: &Client, user_info: &UserInfo) -> Result<()> {
   let all_mrs: HashMap<usize, MergeRequest> = all_mrs(&client, &user_info)?;
   let mut all_mrs: Vec<(MergeRequest, ApprovalInfo)> = all_mrs
     .into_iter()
@@ -350,4 +337,26 @@ fn main() -> Result<()> {
   }
 
   Ok(())
+}
+
+fn main() -> Result<()> {
+  let gitlab_token = env::var("GITLAB_TOKEN")?;
+
+  let client = Client::builder()
+    .default_headers(HeaderMap::from_iter([(
+      "Authorization".parse().unwrap(),
+      format!("Bearer {}", gitlab_token).parse()?,
+    )]))
+    .build()?;
+
+  let user_name = env::args()
+    .nth(1)
+    .ok_or::<Box<dyn Error>>("First argument should be the GitLab user name".into())?;
+
+  let user_info = user_info(&client, user_name.as_str())?;
+
+  loop {
+    print_all(&client, &user_info)?;
+    sleep(Duration::from_secs(30));
+  }
 }
