@@ -24,18 +24,19 @@ struct UserInfo {
   username: String,
 }
 
-fn user_info(client: &Client, user: &str) -> Result<UserInfo> {
-  let response: Vec<UserInfo> = client
-    .get("https://gitlab.com/api/v4/users")
-    .query(&[("username", user)])
-    .send()?
-    .json()?;
+impl UserInfo {
+  fn get<UserName: AsRef<str>>(client: &Client, user: UserName) -> Result<Self> {
+    let response: Vec<UserInfo> = client
+      .get("https://gitlab.com/api/v4/users")
+      .query(&[("username", user.as_ref())])
+      .send()?
+      .json()?;
 
-  if response.is_empty() {
-    return Err("No user found with that name".into());
+    response
+      .into_iter()
+      .last()
+      .ok_or("No user found with that name".into())
   }
-
-  Ok(response.into_iter().last().unwrap())
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -353,7 +354,7 @@ fn main() -> Result<()> {
     .nth(1)
     .ok_or::<Box<dyn Error>>("First argument should be the GitLab user name".into())?;
 
-  let user_info = user_info(&client, user_name.as_str())?;
+  let user_info = UserInfo::get(&client, user_name.as_str())?;
 
   loop {
     print_all(&client, &user_info)?;
