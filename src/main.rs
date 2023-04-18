@@ -9,6 +9,7 @@ use std::{
   collections::HashMap,
   env,
   error::Error,
+  fmt::Display,
   io::{stdout, Write},
   ops::Sub,
   thread::sleep,
@@ -17,9 +18,18 @@ use std::{
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Copy)]
+struct Id(usize);
+
+impl Display for Id {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    self.0.fmt(f)
+  }
+}
+
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 struct User {
-  id: usize,
+  id: Id,
   name: String,
   username: String,
 }
@@ -34,7 +44,7 @@ impl User {
 
     response
       .into_iter()
-      .last()
+      .next()
       .ok_or("No user found with that name".into())
   }
 
@@ -51,7 +61,7 @@ impl User {
     )
   }
 
-  fn get_mrs_to_review(&self, client: &Client) -> Result<HashMap<usize, MergeRequest>> {
+  fn get_mrs_to_review(&self, client: &Client) -> Result<HashMap<Id, MergeRequest>> {
     let mrs: Vec<MergeRequest> = client
       .get("https://gitlab.com/api/v4/merge_requests")
       .query(&[
@@ -70,7 +80,7 @@ impl User {
     Ok(mrs)
   }
 
-  fn get_assigned_mrs(&self, client: &Client) -> Result<HashMap<usize, MergeRequest>> {
+  fn get_assigned_mrs(&self, client: &Client) -> Result<HashMap<Id, MergeRequest>> {
     let mrs: Vec<MergeRequest> = client
       .get("https://gitlab.com/api/v4/merge_requests")
       .query(&[
@@ -84,7 +94,7 @@ impl User {
     Ok(mrs)
   }
 
-  fn get_authored_mrs(&self, client: &Client) -> Result<HashMap<usize, MergeRequest>> {
+  fn get_authored_mrs(&self, client: &Client) -> Result<HashMap<Id, MergeRequest>> {
     let mrs: Vec<MergeRequest> = client
       .get("https://gitlab.com/api/v4/merge_requests")
       .query(&[
@@ -98,8 +108,8 @@ impl User {
     Ok(mrs)
   }
 
-  fn get_related_mrs(&self, client: &Client) -> Result<HashMap<usize, MergeRequest>> {
-    let recent_mrs: HashMap<usize, MergeRequest> = self
+  fn get_related_mrs(&self, client: &Client) -> Result<HashMap<Id, MergeRequest>> {
+    let recent_mrs: HashMap<Id, MergeRequest> = self
       .get_recent_pushes(&client)?
       .iter()
       .map(|recent_push| {
@@ -113,7 +123,7 @@ impl User {
     let assigned = self.get_assigned_mrs(&client)?;
     let authored = self.get_authored_mrs(&client)?;
 
-    let all_mrs: HashMap<usize, MergeRequest> = recent_mrs
+    let all_mrs: HashMap<Id, MergeRequest> = recent_mrs
       .into_iter()
       .chain(to_review)
       .chain(assigned)
@@ -132,7 +142,7 @@ struct PushData {
 
 #[derive(Deserialize, Debug, Clone)]
 struct RecentPush {
-  project_id: usize,
+  project_id: Id,
   push_data: PushData,
 }
 
@@ -148,9 +158,9 @@ struct Milestone {
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 struct MergeRequest {
-  id: usize,
-  iid: usize,
-  project_id: usize,
+  id: Id,
+  iid: Id,
+  project_id: Id,
   title: String,
   milestone: Option<Milestone>,
   draft: bool,
@@ -166,9 +176,9 @@ struct MergeRequest {
 impl MergeRequest {
   fn get_by_branch<BranchName: AsRef<str>>(
     client: &Client,
-    project_id: usize,
+    project_id: Id,
     branch: BranchName,
-  ) -> Result<HashMap<usize, MergeRequest>> {
+  ) -> Result<HashMap<Id, MergeRequest>> {
     let mrs: Vec<MergeRequest> = client
       .get(format!(
         "https://gitlab.com/api/v4/projects/{}/merge_requests",
@@ -181,7 +191,7 @@ impl MergeRequest {
       ])
       .send()?
       .json()?;
-    let mrs: HashMap<usize, MergeRequest> = mrs.into_iter().map(|mr| (mr.id, mr)).collect();
+    let mrs: HashMap<Id, MergeRequest> = mrs.into_iter().map(|mr| (mr.id, mr)).collect();
     Ok(mrs)
   }
 }
@@ -264,7 +274,7 @@ fn cell(width: usize, body: &str) -> String {
 }
 
 fn print_all(client: &Client, user: &User) -> Result<()> {
-  let all_mrs: HashMap<usize, MergeRequest> = user.get_related_mrs(&client)?;
+  let all_mrs: HashMap<Id, MergeRequest> = user.get_related_mrs(&client)?;
   let mut all_mrs: Vec<(MergeRequest, ApprovalInfo)> = all_mrs
     .into_iter()
     .map(|(_, mr)| ApprovalInfo::get(&client, &mr).map(|approval_info| (mr, approval_info)))
