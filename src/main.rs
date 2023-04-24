@@ -314,6 +314,12 @@ fn print_all(client: &Client, user: &User) -> Result<()> {
         Color::White
       },
     );
+    let author =
+      cell(assignee_width, mr.author.username.as_str()).with(if mr.author.id == user.id {
+        Color::Green
+      } else {
+        Color::White
+      });
     let assignees = cell(
       assignee_width,
       mr.assignees
@@ -338,6 +344,8 @@ fn print_all(client: &Client, user: &User) -> Result<()> {
       Print(reference),
       Print(" "),
       Print(title),
+      Print(" "),
+      Print(author),
       Print(" "),
       Print(assignees),
       Print(" "),
