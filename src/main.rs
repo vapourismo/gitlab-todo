@@ -287,18 +287,26 @@ fn print_all(client: &Client, user: &User) -> Result<()> {
   });
 
   let mut target = stdout();
+
+  let term_width = crossterm::terminal::size()
+    .map(|(w, __)| w as usize)
+    .unwrap_or(80);
   let ref_width = all_mrs
     .iter()
     .map(|(mr, _)| mr.references.full.len())
     .max()
     .unwrap_or(25);
   let assignee_width = 15;
-  let reviewer_width = 40;
-  let title_width = all_mrs
-    .iter()
-    .map(|(mr, _)| mr.title.len())
-    .max()
-    .unwrap_or(80);
+  let dynamic_width = term_width.saturating_sub(ref_width + assignee_width * 2 + 3);
+  let title_width = if dynamic_width > 0 {
+    dynamic_width
+  } else {
+    all_mrs
+      .iter()
+      .map(|(mr, _)| mr.title.len())
+      .max()
+      .unwrap_or(40)
+  };
 
   crossterm::execute!(target, Clear(ClearType::All))?;
   for (mr, approval_info) in all_mrs {
@@ -329,15 +337,6 @@ fn print_all(client: &Client, user: &User) -> Result<()> {
         .as_str(),
     )
     .red();
-    let reviewers = cell(
-      reviewer_width,
-      mr.reviewers
-        .iter()
-        .map(|r| format!("{} ", r.username))
-        .collect::<String>()
-        .as_str(),
-    )
-    .grey();
 
     crossterm::execute!(
       target,
@@ -348,8 +347,6 @@ fn print_all(client: &Client, user: &User) -> Result<()> {
       Print(author),
       Print(" "),
       Print(assignees),
-      Print(" "),
-      Print(reviewers)
     )?;
     writeln!(target, "")?;
   }
