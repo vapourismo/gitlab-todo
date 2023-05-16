@@ -112,8 +112,13 @@ impl User {
     let recent_mrs: HashMap<Id, MergeRequest> = self
       .get_recent_pushes(&client)?
       .iter()
-      .map(|recent_push| {
-        MergeRequest::get_by_branch(&client, recent_push.project_id, &recent_push.push_data.ref_)
+      .filter_map(|recent_push| {
+        let branch = recent_push.push_data.ref_.as_ref()?;
+        Some(MergeRequest::get_by_branch(
+          &client,
+          recent_push.project_id,
+          branch,
+        ))
       })
       .collect::<Result<Vec<_>>>()?
       .into_iter()
@@ -137,7 +142,7 @@ impl User {
 #[derive(Deserialize, Debug, Clone)]
 struct PushData {
   #[serde(rename = "ref")]
-  ref_: String,
+  ref_: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
