@@ -230,6 +230,11 @@ fn make_link(url: &str, title: &str) -> String {
 }
 
 fn priority(mr: &MergeRequest, approval_info: &ApprovalInfo, user: &User) -> isize {
+  let approved = approval_info
+    .approved_by
+    .iter()
+    .any(|a| a.user.id == user.id);
+
   let mut prio = 0;
 
   if mr.assignees.iter().any(|assignee| assignee.id == user.id) {
@@ -245,6 +250,10 @@ fn priority(mr: &MergeRequest, approval_info: &ApprovalInfo, user: &User) -> isi
   }
 
   if mr.has_conflicts {
+    prio -= 1;
+  }
+
+  if approved {
     prio -= 1;
   }
 
@@ -316,10 +325,14 @@ fn print_all(client: &Client, user: &User) -> Result<()> {
   crossterm::execute!(target, Clear(ClearType::All))?;
   for (mr, approval_info) in all_mrs {
     let reference = make_link(&mr.web_url, &cell(ref_width, &mr.references.full)).blue();
+    let approved = approval_info
+      .approved_by
+      .iter()
+      .any(|a| a.user.id == user.id);
     let title = cell(title_width, &mr.title).with(
       if mr.assignees.iter().any(|assignee| assignee.id == user.id) {
         Color::Red
-      } else if approval_info.approvals_left < 1 {
+      } else if approval_info.approvals_left < 1 || approved {
         Color::Green
       } else if mr.draft {
         Color::Grey
