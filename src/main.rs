@@ -110,12 +110,12 @@ impl User {
 
   fn get_related_mrs(&self, client: &Client) -> Result<HashMap<Id, MergeRequest>> {
     let recent_mrs: HashMap<Id, MergeRequest> = self
-      .get_recent_pushes(&client)?
+      .get_recent_pushes(client)?
       .iter()
       .filter_map(|recent_push| {
         let branch = recent_push.push_data.ref_.as_ref()?;
         Some(MergeRequest::get_by_branch(
-          &client,
+          client,
           recent_push.project_id,
           branch,
         ))
@@ -124,9 +124,9 @@ impl User {
       .into_iter()
       .flat_map(|mrs| mrs.into_iter())
       .collect();
-    let to_review = self.get_mrs_to_review(&client)?;
-    let assigned = self.get_assigned_mrs(&client)?;
-    let authored = self.get_authored_mrs(&client)?;
+    let to_review = self.get_mrs_to_review(client)?;
+    let assigned = self.get_assigned_mrs(client)?;
+    let authored = self.get_authored_mrs(client)?;
 
     let all_mrs: HashMap<Id, MergeRequest> = recent_mrs
       .into_iter()
@@ -288,15 +288,15 @@ fn cell(width: usize, body: &str) -> String {
 }
 
 fn print_all(client: &Client, user: &User) -> Result<()> {
-  let all_mrs: HashMap<Id, MergeRequest> = user.get_related_mrs(&client)?;
+  let all_mrs: HashMap<Id, MergeRequest> = user.get_related_mrs(client)?;
   let mut all_mrs: Vec<(MergeRequest, ApprovalInfo)> = all_mrs
-    .into_iter()
-    .map(|(_, mr)| ApprovalInfo::get(&client, &mr).map(|approval_info| (mr, approval_info)))
+    .into_values()
+    .map(|mr| ApprovalInfo::get(client, &mr).map(|approval_info| (mr, approval_info)))
     .collect::<Result<_>>()?;
 
   all_mrs.sort_by(|lhs, rhs| {
-    let lhs_prio = priority(&lhs.0, &lhs.1, &user);
-    let rhs_prio = priority(&rhs.0, &rhs.1, &user);
+    let lhs_prio = priority(&lhs.0, &lhs.1, user);
+    let rhs_prio = priority(&rhs.0, &rhs.1, user);
     lhs_prio.cmp(&rhs_prio).reverse()
   });
 
@@ -366,7 +366,7 @@ fn print_all(client: &Client, user: &User) -> Result<()> {
       Print(" "),
       Print(assignees),
     )?;
-    writeln!(target, "")?;
+    writeln!(target)?;
   }
 
   Ok(())
