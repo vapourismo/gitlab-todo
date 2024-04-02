@@ -171,6 +171,7 @@ struct MergeRequest {
   draft: bool,
   has_conflicts: bool,
   references: References,
+  target_branch: String,
   web_url: String,
   updated_at: DateTime<Utc>,
   author: User,
@@ -239,6 +240,10 @@ fn priority(mr: &MergeRequest, approval_info: &ApprovalInfo, user: &User) -> isi
 
   if mr.assignees.iter().any(|assignee| assignee.id == user.id) {
     prio += 5;
+  }
+
+  if ["master", "main"].contains(&mr.target_branch.as_str()) {
+    prio += 2;
   }
 
   if mr.author.id == user.id {
