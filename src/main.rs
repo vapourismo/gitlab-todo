@@ -230,6 +230,10 @@ fn make_link(url: &str, title: &str) -> String {
   format!("\x1B]8;;{}\x1B\\{}\x1B]8;;\x1B\\", url, title)
 }
 
+fn targets_main_branch(mr: &MergeRequest) -> bool {
+  ["master", "main"].contains(&mr.target_branch.as_str())
+}
+
 fn priority(mr: &MergeRequest, approval_info: &ApprovalInfo, user: &User) -> isize {
   let approved = approval_info
     .approved_by
@@ -242,7 +246,7 @@ fn priority(mr: &MergeRequest, approval_info: &ApprovalInfo, user: &User) -> isi
     prio += 5;
   }
 
-  if ["master", "main"].contains(&mr.target_branch.as_str()) {
+  if targets_main_branch(mr) {
     prio += 2;
   }
 
@@ -335,8 +339,12 @@ fn print_all(client: &Client, user: &User) -> Result<()> {
       .iter()
       .any(|a| a.user.id == user.id);
     let title = cell(title_width, &mr.title).with(
-      if mr.assignees.iter().any(|assignee| assignee.id == user.id) {
-        Color::Red
+      if mr.assignees.iter().any(|assignee| assignee.id == user.id) && !mr.draft {
+        if targets_main_branch(&mr) {
+          Color::Red
+        } else {
+          Color::DarkYellow
+        }
       } else if approval_info.approvals_left < 1 || approved {
         Color::Green
       } else if mr.draft {
