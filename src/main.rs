@@ -238,7 +238,7 @@ fn priority(mr: &MergeRequest, approval_info: &ApprovalInfo, user: &User) -> isi
 
   let mut prio = 0;
 
-  if mr.assignees.iter().any(|assignee| assignee.id == user.id) {
+  if mr.assignees.iter().any(|assignee| assignee.id == user.id) && !mr.draft {
     prio += 5;
   }
 
