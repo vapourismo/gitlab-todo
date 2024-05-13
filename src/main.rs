@@ -185,7 +185,7 @@ impl MergeRequest {
     project_id: Id,
     branch: BranchName,
   ) -> Result<HashMap<Id, MergeRequest>> {
-    let mrs: Vec<MergeRequest> = client
+    let response = client
       .get(format!(
         "https://gitlab.com/api/v4/projects/{}/merge_requests",
         project_id
@@ -195,8 +195,13 @@ impl MergeRequest {
         ("scope", "all"),
         ("source_branch", branch.as_ref()),
       ])
-      .send()?
-      .json()?;
+      .send()?;
+
+    if !response.status().is_success() {
+      return Ok(HashMap::new());
+    }
+
+    let mrs: Vec<MergeRequest> = response.json()?;
     let mrs: HashMap<Id, MergeRequest> = mrs.into_iter().map(|mr| (mr.id, mr)).collect();
     Ok(mrs)
   }
